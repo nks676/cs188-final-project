@@ -1,66 +1,133 @@
 # Project Plan: Multimodal Robotic Blackjack Dealer
 
-## 1. Project Overview & Feasibility Assessment
-The goal is to create a robotic Blackjack game where a user interacts via voice commands (bet sizing) and hand gestures (hit, stand, double, split), while a robot acts as the dealer. 
+## 1. Project Overview
+A robotic Blackjack game where users interact via **voice commands** (bet sizing) and **hand gestures** (hit, stand, double, split), while a simulated robot arm (`robosuite`) acts as the dealer by manipulating chip objects.
 
-Given the 1-2 week timeline of a college-level introductory robotics course (CS188), we need to carefully scope the project to ensure success.
-
-### 🛑 Out of Scope (Too Difficult for 1-2 Weeks)
-- **Physical Card Manipulation (Dealing, Shuffling, Picking Up):** Standard playing cards are thin, deformable, and flat against the table. Grasping them with a standard parallel-jaw gripper is notoriously difficult and prone to failure without building specialized end-effectors (like suction cups) or motion primitives. 
-- **Two Physical Robots:** Managing two robots (a dealer and a player robot) introduces significant integration overhead and potential collision issues. 
-
-### ✅ In Scope (Feasible Approach)
-- **Virtual Cards / Human Cards:** The card game state will be managed virtually (displayed on a screen) while the robot focuses on the physical interaction of **managing bets and chips**. 
-- **Physical Chip Manipulation:** The robot dealer will physically take chips (represented by graspable colored blocks or thick 3D-printed chips) from the user when they lose, and push/place chips to the user when they win.
-- **Multimodal Control:** Using highly reliable off-the-shelf ML models to process Voice (for betting) and Gestures (for playing). 
-- **Robosuite Simulation (Fallback):** If physical hardware access or calibration takes too long, this entire setup can be implemented in a simulated `robosuite` environment, which perfectly aligns with the course's "Multimodal Control" example project.
+**Team size:** 3 members  
+**Timeline:** 2 weeks  
+**Course:** CS 188 — Introduction to Robotics (Winter 2026)
 
 ---
 
 ## 2. System Architecture
 
-The project will consist of three main modules:
+```
+┌──────────────────────┐
+│   Input Processing   │  ← Person A
+│  (Voice + Gestures)  │
+└────────┬─────────────┘
+         │ actions / bets
+         ▼
+┌──────────────────────┐
+│  Game State Manager  │  ← Person B
+│   (Blackjack Logic)  │
+└────────┬─────────────┘
+         │ robot commands
+         ▼
+┌──────────────────────┐
+│  Robotics Execution  │  ← Person C
+│  (Chip Manipulation) │
+└──────────────────────┘
+```
 
-### A. Input Processing Module (Human-Robot Interaction)
-1. **Voice Recognition (Bets):** Use `SpeechRecognition` library or OpenAI's Whisper API to listen for numbers (e.g., "Bet fifty").
-2. **Gesture Recognition (Actions):** Use `MediaPipe Hands` via a webcam to classify static gestures:
-   - *Fist* = Stand
-   - *Open Palm* = Hit
-   - *Two Fingers (Peace Sign)* = Split
-   - *Thumbs Up / Pointing* = Double Down
-
-### B. Game State Manager
-- A Python state machine that runs the rules of Blackjack.
-- Tracks the player's bankroll, current bet, player's hand, and dealer's hand.
-- Outputs the physical actions required by the robot (e.g., "Collect 50 chips", "Payout 100 chips").
-
-### C. Robotics Execution Module
-- **Environment:** A physical robot arm (or a simulated `robosuite` arm).
-- **Objects:** Colored wooden blocks representing chip denominations (e.g., Red = $25, Blue = $50).
-- **Actions:** Pick-and-place routines to move chips between the "Dealer Bank" area and the "Player Betting" area based on the Game State Manager's output.
-
----
-
-## 3. Implementation Timeline (2 Weeks)
-
-### Week 1: Core Logic & Perception
-- **Day 1-2:** Implement the Python Blackjack Game State Manager (no robotics yet). 
-- **Day 3-4:** Integrate `MediaPipe` for hand gesture recognition and map them to game actions (Hit, Stand, etc.). Test accuracy.
-- **Day 5:** Integrate voice recognition for bet sizing. Combine Voice + Gestures + Game State into a playable text/UI-based game.
-- **Weekend:** Define the workspace. Decide definitively between a Physical Robot or Robosuite simulation. Set up the environment with "chip" objects.
-
-### Week 2: Robotics Integration & Finalization
-- **Day 8-9:** Implement robot kinematics/trajectories for chip manipulation. Write functions for `payout_chips(amount)` and `collect_chips()`.
-- **Day 10-11:** End-to-end integration. Connect the HRI (Voice/Camera) to the robot so that completing a hand automatically triggers the robot to move chips.
-- **Day 12:** Debugging, edge cases, and robustness testing. 
-- **Day 13:** Record the demo video (showing the UI, the user making gestures/speaking, and the robot moving chips).
-- **Day 14:** Write the final project report (addressing method, evaluation, and reflections).
+The three modules communicate through **well-defined interfaces** (Python function signatures / message contracts), allowing all three to be developed and tested independently.
 
 ---
 
-## 4. Evaluation Metrics for Final Report
-To meet the course grading criteria, we will evaluate:
-1. **Perception Accuracy:** Success rate of gesture recognition (e.g., over 50 trials, how often did MediaPipe correctly map the gesture to Hit/Stand/Double).
-2. **Command NLP Accuracy:** Success rate of parsing voice bets.
-3. **Manipulation Success Rate:** How often the robot successfully executes the pick-and-place operation to collect or payout chips without dropping them. 
-4. **Latency:** The average time from issuing a gesture to the game state updating and the robot taking action.
+## 3. Work Assignments
+
+### Person A — Input Processing (Voice + Gesture HRI)
+**Goal:** Deliver two Python modules that convert raw sensor input into clean game commands.
+
+| Task | Days | Details |
+|------|------|---------|
+| Gesture recognition | 1–4 | Use `MediaPipe Hands` via webcam. Classify static poses: tap table → Hit, wave → Stand, peace sign → Double, two hands → Split. Build a small labeled dataset and measure accuracy. |
+| Voice recognition | 3–5 | Use `SpeechRecognition` or OpenAI Whisper to parse spoken bet amounts (e.g., "bet fifty" → `50`). Handle noise and edge cases. |
+| Unified input API | 5–6 | Expose a clean interface: `get_player_action() → Action` and `get_bet_amount() → int` that Person B can call. |
+| Accuracy evaluation | 7 | Run ≥ 50 trials per modality and report accuracy for the final paper. |
+
+**Interface contract (output to Person B):**
+```python
+class Action(Enum):
+    HIT = "hit"
+    STAND = "stand"
+    DOUBLE = "double"
+    SPLIT = "split"
+
+def get_player_action() -> Action: ...
+def get_bet_amount() -> int: ...
+```
+
+---
+
+### Person B — Game State Manager (Blackjack Engine + UI)
+**Goal:** A fully testable Blackjack state machine and a visual display for the game.
+
+| Task | Days | Details |
+|------|------|---------|
+| Core Blackjack logic | 1–3 | Implement dealing, hand evaluation, hit/stand/double/split rules, dealer AI (hit on soft 17), bankroll tracking. Write unit tests. |
+| Game display / UI | 3–5 | Build a simple screen display (Pygame, terminal, or web) showing: player hand, dealer hand, current bet, bankroll. |
+| Robot command API | 4–6 | After each hand resolves, emit robot commands: `payout_chips(amount)` or `collect_chips(amount)` that Person C implements. |
+| Integration glue | 7–8 | Wire Person A's input API and Person C's robot API into the game loop. Handle error/retry logic. |
+
+**Interface contract (output to Person C):**
+```python
+class RobotCommand:
+    action: str   # "payout" or "collect"
+    amount: int   # chip value
+
+def on_hand_resolved(result) -> RobotCommand: ...
+```
+
+---
+
+### Person C — Robotics Execution (Chip Manipulation in Robosuite)
+**Goal:** A `robosuite` simulated robot arm that picks and places chip objects on command.
+
+| Task | Days | Details |
+|------|------|---------|
+| Robosuite environment setup | 1–2 | Set up `robosuite` simulation with a robot arm (e.g., Panda). Create a custom task environment with chip objects (colored blocks) in Dealer Bank and Player Betting zones. Define coordinate frames and camera views. |
+| Pick-and-place routines | 2–5 | Implement `payout_chips(amount)` (move chips from bank → player) and `collect_chips(amount)` (player → bank). Tune grasping, trajectories, and release in simulation. |
+| Robustness & edge cases | 5–7 | Handle multi-chip payouts (break amount into denominations), retry on grasp failure, speed optimization. Render the simulation view for the demo video. |
+| Manipulation eval | 7 | Run ≥ 30 simulated manipulation trials; measure success rate and latency for the final paper. |
+
+**Interface contract (input from Person B):**
+```python
+def payout_chips(amount: int) -> bool: ...
+def collect_chips(amount: int) -> bool: ...
+```
+
+---
+
+## 4. Integration Milestones
+
+| Milestone | Target Day | Description |
+|-----------|-----------|-------------|
+| **M1: Interfaces frozen** | Day 3 | All three agree on the exact Python function signatures above. Stub implementations checked in so everyone can develop against them. |
+| **M2: Module demos** | Day 7 | Each person demos their module independently (A: gesture/voice accuracy, B: game plays correctly with keyboard input, C: robosuite arm moves chips on command). |
+| **M3: End-to-end integration** | Day 9 | Wire all modules together. Play a full hand: voice bet → gesture actions → game resolution → robot moves chips. |
+| **M4: Polish & record** | Day 11–12 | Debug edge cases, stress test, record the demo video. |
+| **M5: Deliverables** | Day 13–14 | Write final report, build project website, clean up source code & README. |
+
+---
+
+## 5. Shared Responsibilities (Days 11–14)
+
+These tasks are done together and should be split evenly:
+
+- [ ] **Demo video** — Record a polished video showing the full pipeline in action.
+- [ ] **Project website** — Clear, visually engaging summary with images and the demo video.
+- [ ] **Final report** — Each person writes their own module section; one person assembles and edits.
+- [ ] **README & code cleanup** — Ensure the repo is well-documented and reproducible.
+
+---
+
+## 6. Evaluation Metrics (for Report)
+
+| Metric | Owner | Method |
+|--------|-------|--------|
+| Gesture recognition accuracy | A | ≥ 50 trials, report % correct per gesture |
+| Voice command accuracy | A | ≥ 50 trials, report % correct bets parsed |
+| Manipulation success rate (sim) | C | ≥ 30 simulated pick-and-place trials, report % success |
+| End-to-end latency | All | Time from gesture → game update → robot action |
+
