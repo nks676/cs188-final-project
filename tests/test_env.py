@@ -16,8 +16,8 @@ import pytest
 pytestmark = pytest.mark.robosuite
 pytest.importorskip("robosuite")
 
-from task_a.env import BlockManipulationEnv
-from task_a.config import BLOCK_COLORS
+from taska.env import BlockManipulationEnv
+from taska.config import BLOCK_COLORS
 
 RENDER_STEPS = 300
 

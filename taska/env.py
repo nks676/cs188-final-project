@@ -1,132 +1,236 @@
-"""Function-based adapter over task_a.BlockEnvironment for Task B integration."""
+"""
+Custom robosuite environment with 6 colored blocks on a table.
 
-from __future__ import annotations
+Colors are fixed; sizes (small/large) and positions are randomized each reset.
+Uses hard_reset=True so the model is rebuilt every reset, allowing size re-randomization.
+"""
 
-import atexit
-import os
+from collections import OrderedDict
 
-_ENV = None
-_USE_STUBS = None
-REQUIRE_REAL_TASKA_ENV = "TASKB_REQUIRE_REAL_TASKA"
-USE_STUBS_ENV = "TASKB_USE_STUBS"
-RENDER_ENV = "TASKA_RENDER"
+import numpy as np
 
+from robosuite.environments.manipulation.manipulation_env import ManipulationEnv
+from robosuite.models.arenas import TableArena
+from robosuite.models.objects import BoxObject
+from robosuite.models.tasks import ManipulationTask
+from robosuite.utils.observables import Observable, sensor
+from robosuite.utils.placement_samplers import UniformRandomSampler
 
-def _env_flag(name: str) -> bool:
-    """Parse common truthy values from environment flags."""
-    return os.environ.get(name, "").lower() in {"1", "true", "yes", "on"}
-
-
-def _task_a_available():
-    """Return True when the real Task A environment can be constructed."""
-    global _USE_STUBS
-    if _USE_STUBS is None:
-        try:
-            from task_a import BlockEnvironment  # noqa: F401
-        except ImportError:
-            _USE_STUBS = True
-        else:
-            _USE_STUBS = False
-    return not _USE_STUBS
+from taska.config import (
+    BLOCK_COLORS,
+    PLACEMENT_X_RANGE,
+    PLACEMENT_Y_RANGE,
+    PLACEMENT_Z_OFFSET,
+    SIZE_CATEGORIES,
+    SIZE_MAP,
+    TABLE_FULL_SIZE,
+    TABLE_OFFSET,
+)
 
 
-def _require_real_task_a() -> bool:
-    """Return True when the caller requires the real Task A backend."""
-    return _env_flag(REQUIRE_REAL_TASKA_ENV)
+class BlockManipulationEnv(ManipulationEnv):
+    """
+    Tabletop environment with 6 colored blocks for the Code-as-Policies project.
 
+    Blocks have fixed colors (red, blue, green, yellow, purple, orange).
+    Each reset randomizes:
+      - Block sizes: each block independently assigned "small" or "large"
+      - Block positions: scattered on the table via UniformRandomSampler
+    """
 
-def _force_stubs() -> bool:
-    """Return True when tests explicitly request the stub backend."""
-    return _env_flag(USE_STUBS_ENV)
+    def __init__(
+        self,
+        robots="Panda",
+        env_configuration="default",
+        controller_configs=None,
+        gripper_types="default",
+        base_types="default",
+        initialization_noise="default",
+        table_full_size=TABLE_FULL_SIZE,
+        table_friction=(1.0, 5e-3, 1e-4),
+        use_camera_obs=False,
+        use_object_obs=True,
+        placement_initializer=None,
+        has_renderer=False,
+        has_offscreen_renderer=False,
+        render_camera="frontview",
+        render_collision_mesh=False,
+        render_visual_mesh=True,
+        render_gpu_device_id=-1,
+        control_freq=20,
+        lite_physics=True,
+        horizon=10000,
+        ignore_done=True,
+        hard_reset=True,
+        camera_names="agentview",
+        camera_heights=256,
+        camera_widths=256,
+        camera_depths=False,
+        camera_segmentations=None,
+        renderer="mjviewer",
+        renderer_config=None,
+        seed=None,
+    ):
+        self.table_full_size = table_full_size
+        self.table_friction = table_friction
+        self.table_offset = np.array(TABLE_OFFSET)
 
+        self.use_object_obs = use_object_obs
+        self.placement_initializer = placement_initializer
 
-def using_stub_fallback() -> bool:
-    """Return True when Task B should use stub behavior instead of the real env."""
-    if _force_stubs():
-        return True
+        # Populated during _load_model(); stores per-block metadata and BoxObject refs.
+        self.block_objects = []
+        self.block_meta = []
 
-    if _task_a_available():
-        return False
-
-    if _require_real_task_a():
-        raise RuntimeError(
-            f"{REQUIRE_REAL_TASKA_ENV}=1 but the real Task A environment is unavailable. "
-            "Install robosuite and Task A dependencies in the project venv."
+        super().__init__(
+            robots=robots,
+            env_configuration=env_configuration,
+            controller_configs=controller_configs,
+            base_types=base_types,
+            gripper_types=gripper_types,
+            initialization_noise=initialization_noise,
+            use_camera_obs=use_camera_obs,
+            has_renderer=has_renderer,
+            has_offscreen_renderer=has_offscreen_renderer,
+            render_camera=render_camera,
+            render_collision_mesh=render_collision_mesh,
+            render_visual_mesh=render_visual_mesh,
+            render_gpu_device_id=render_gpu_device_id,
+            control_freq=control_freq,
+            lite_physics=lite_physics,
+            horizon=horizon,
+            ignore_done=ignore_done,
+            hard_reset=hard_reset,
+            camera_names=camera_names,
+            camera_heights=camera_heights,
+            camera_widths=camera_widths,
+            camera_depths=camera_depths,
+            camera_segmentations=camera_segmentations,
+            renderer=renderer,
+            renderer_config=renderer_config,
+            seed=seed,
         )
 
-    raise RuntimeError(
-        "The real Task A environment is unavailable. "
-        f"Install robosuite and Task A dependencies, or set {USE_STUBS_ENV}=1 for stub-only tests."
-    )
+    def reward(self, action=None):
+        return 0.0
 
+    def _load_model(self):
+        super()._load_model()
 
-def _ensure_env():
-    global _ENV
-    if using_stub_fallback():
-        raise RuntimeError("Task A runtime dependencies are unavailable.")
-    if _ENV is None:
-        from task_a import BlockEnvironment
+        # Position the robot base for the table
+        xpos = self.robots[0].robot_model.base_xpos_offset["table"](
+            self.table_full_size[0]
+        )
+        self.robots[0].robot_model.set_base_xpos(xpos)
 
-        # Optional viewer for interactive Task B runs (disabled by default).
-        render = _env_flag(RENDER_ENV)
-        _ENV = BlockEnvironment(has_renderer=render, has_offscreen_renderer=False)
-    return _ENV
+        # Create the table arena
+        mujoco_arena = TableArena(
+            table_full_size=self.table_full_size,
+            table_friction=self.table_friction,
+            table_offset=self.table_offset,
+        )
+        mujoco_arena.set_origin([0, 0, 0])
 
+        # Create 6 blocks with randomized sizes
+        self.block_objects = []
+        self.block_meta = []
 
-def reset_env():
-    """Reset the shared Task A environment and return the initial scene state."""
-    if using_stub_fallback():
-        from taskb.stubs import get_scene_state, reset_scene
+        for i, block_def in enumerate(BLOCK_COLORS):
+            size_cat = self.rng.choice(SIZE_CATEGORIES)
+            half_extents = SIZE_MAP[size_cat]
 
-        reset_scene()
-        return get_scene_state()
-    env = _ensure_env()
-    return env.reset()
+            block = BoxObject(
+                name=block_def["name"],
+                size=half_extents,
+                rgba=block_def["rgba"],
+            )
 
+            self.block_objects.append(block)
+            self.block_meta.append(
+                {
+                    "id": i,
+                    "name": block_def["name"],
+                    "color": block_def["color"],
+                    "size": size_cat,
+                    "rgba": block_def["rgba"],
+                    "half_extents": list(half_extents),
+                }
+            )
 
-def get_scene_state():
-    """Return scene state, lazily resetting the env on first use."""
-    if using_stub_fallback():
-        from taskb.stubs import get_scene_state as _get_scene_state
+        # Placement sampler for randomized positions
+        if self.placement_initializer is not None:
+            self.placement_initializer.reset()
+            self.placement_initializer.add_objects(self.block_objects)
+        else:
+            self.placement_initializer = UniformRandomSampler(
+                name="BlockSampler",
+                mujoco_objects=self.block_objects,
+                x_range=PLACEMENT_X_RANGE,
+                y_range=PLACEMENT_Y_RANGE,
+                rotation=None,
+                ensure_object_boundary_in_range=False,
+                ensure_valid_placement=True,
+                reference_pos=self.table_offset,
+                z_offset=PLACEMENT_Z_OFFSET,
+                rng=self.rng,
+            )
 
-        return _get_scene_state()
-    env = _ensure_env()
-    try:
-        return env.get_scene_state()
-    except RuntimeError:
-        env.reset()
-        return env.get_scene_state()
+        # Assemble the full MuJoCo model
+        self.model = ManipulationTask(
+            mujoco_arena=mujoco_arena,
+            mujoco_robots=[robot.robot_model for robot in self.robots],
+            mujoco_objects=self.block_objects,
+        )
 
+    def _setup_references(self):
+        super()._setup_references()
 
-def get_workspace_bounds():
-    """Return workspace bounds from the shared Task A environment."""
-    if using_stub_fallback():
-        from taskb.stubs import get_workspace_bounds as _get_workspace_bounds
+        # Map block integer IDs to MuJoCo body IDs
+        self.block_body_ids = {}
+        for meta, obj in zip(self.block_meta, self.block_objects):
+            self.block_body_ids[meta["id"]] = self.sim.model.body_name2id(
+                obj.root_body
+            )
 
-        return _get_workspace_bounds()
-    return _ensure_env().get_workspace_bounds()
+    def _setup_observables(self):
+        observables = super()._setup_observables()
 
+        if self.use_object_obs:
+            modality = "object"
 
-def pick_and_place(source_id: int, target):
-    """Execute a pick-and-place action on the shared Task A environment."""
-    if using_stub_fallback():
-        from taskb.stubs import pick_and_place as _pick_and_place
+            for meta in self.block_meta:
+                bid = meta["id"]
+                bname = meta["name"]
 
-        return _pick_and_place(source_id, target)
-    env = _ensure_env()
-    try:
-        return env.pick_and_place(source_id, target)
-    except RuntimeError:
-        env.reset()
-        return env.pick_and_place(source_id, target)
+                def _make_pos_sensor(block_id, block_name):
+                    @sensor(modality=modality)
+                    def block_pos(obs_cache):
+                        return np.array(
+                            self.sim.data.body_xpos[self.block_body_ids[block_id]]
+                        )
 
+                    block_pos.__name__ = f"{block_name}_pos"
+                    return block_pos
 
-def close_env():
-    """Close and clear the shared Task A environment."""
-    global _ENV
-    if _ENV is not None:
-        _ENV.close()
-        _ENV = None
+                s = _make_pos_sensor(bid, bname)
+                observables[s.__name__] = Observable(
+                    name=s.__name__,
+                    sensor=s,
+                    sampling_rate=self.control_freq,
+                )
 
+        return observables
 
-atexit.register(close_env)
+    def _reset_internal(self):
+        super()._reset_internal()
+
+        if not self.deterministic_reset:
+            object_placements = self.placement_initializer.sample()
+            for obj_pos, obj_quat, obj in object_placements.values():
+                self.sim.data.set_joint_qpos(
+                    obj.joints[0],
+                    np.concatenate([np.array(obj_pos), np.array(obj_quat)]),
+                )
+
+    def _check_success(self):
+        return False

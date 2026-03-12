@@ -11,7 +11,7 @@ Supports two modes via the `target` argument:
 
 import numpy as np
 
-from task_a.config import PLACEMENT_Z_OFFSET, SIZE_MAP
+from taska.config import PLACEMENT_Z_OFFSET, SIZE_MAP
 
 # ---------------------------------------------------------------------------
 # Gripper action values (robosuite Panda convention)

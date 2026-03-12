@@ -7,7 +7,7 @@ Task B is implemented as a standalone Python pipeline under `taskb/`. The curren
 - builds a prompt with a fixed API reference and few-shot examples
 - calls Gemini directly via the `google-genai` SDK
 - validates generated Python with the sandbox in `taskb/sandbox.py`
-- executes against either `taska.env` or deterministic stubs in `taskb/stubs.py`
+- executes against either `taska.api` or deterministic stubs in `taskb/stubs.py`
 - evaluates outcomes and logs each episode to `logs/episodes.jsonl`
 
 This means Task B currently uses a direct SDK call plus a local execution sandbox, not MCP tool wiring.

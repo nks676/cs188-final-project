@@ -1,8 +1,8 @@
 # Task A Integration Handoff
 
-Task B is ready to run against the real `taska.env` backend by default. Stubs now exist only for deterministic tests, so the main requirement is that Task A matches the existing environment contract exactly.
+Task B is ready to run against the real `taska.api` backend by default. Stubs now exist only for deterministic tests, so the main requirement is that Task A matches the existing environment contract exactly.
 
-## Required `taska.env` API
+## Required `taska.api` API
 
 Implement these three functions:
 
@@ -41,14 +41,14 @@ Requirements:
 `taskb.main` tries:
 
 ```python
-from taska.env import get_scene_state, get_workspace_bounds, pick_and_place
+from taska.api import get_scene_state, get_workspace_bounds, pick_and_place
 ```
 
 Task B now uses the real backend by default. Stub behavior should only be enabled deliberately for tests via `TASKB_USE_STUBS=1`.
 
 ## Smoke Tests After Integration
 
-Run these after adding `taska.env`:
+Run these after wiring `taska.api`:
 
 ```bash
 source .venv/bin/activate
@@ -72,4 +72,4 @@ What to watch for:
 
 - Keep the Task A API compatible with the stub behavior in `taskb/stubs.py`.
 - Avoid changing the Task B CLI or prompt contract just to fit Task A.
-- If the real environment uses different object metadata internally, adapt it inside `taska.env` before returning values to Task B.
+- If the real environment uses different object metadata internally, adapt it inside `taska.api` before returning values to Task B.

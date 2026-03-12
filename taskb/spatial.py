@@ -10,7 +10,7 @@ def _ws_bounds():
     global _get_workspace_bounds
     if _get_workspace_bounds is None:
         try:
-            from taska.env import get_workspace_bounds
+            from taska.api import get_workspace_bounds
         except ImportError:
             from taskb.stubs import get_workspace_bounds
         _get_workspace_bounds = get_workspace_bounds

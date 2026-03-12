@@ -8,7 +8,7 @@ These are the two Task-A perception APIs exposed to Task B via MCP:
 
 import numpy as np
 
-from task_a.config import SIZE_MAP, TABLE_FULL_SIZE, TABLE_OFFSET
+from taska.config import SIZE_MAP, TABLE_FULL_SIZE, TABLE_OFFSET
 
 # Inset margin (meters) so computed bounds keep blocks safely on the table.
 _TABLE_MARGIN = 0.05

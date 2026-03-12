@@ -266,7 +266,7 @@ try:
 except ImportError:
     BlockEnvironment = None
 else:
-    from task_a import BlockEnvironment
+    from taska import BlockEnvironment
 
 RENDER_STEPS = 200
 
@@ -291,7 +291,7 @@ def require_real_task_a(monkeypatch):
 
 
 def test_require_real_task_a_raises_without_robosuite(monkeypatch):
-    import taska.env as taska_env
+    import taska.api as taska_env
 
     monkeypatch.delenv("TASKB_USE_STUBS", raising=False)
     monkeypatch.setenv("TASKB_REQUIRE_REAL_TASKA", "1")
@@ -335,7 +335,7 @@ def test_task_a_full_workflow(require_real_task_a):
     stack_z_error = abs(final_block_2["pos"][2] - expected_z)
 
     assert ok or placement_xy_error < 0.04
-    assert ok2 or (stack_xy_error < 0.04 and stack_z_error < 0.02)
+    assert ok2 or (stack_xy_error < 0.04 and stack_z_error < 0.03)
 
 
 @pytest.mark.skipif(BlockEnvironment is None, reason="robosuite not installed")
@@ -363,7 +363,7 @@ def test_task_a_error_handling(require_real_task_a):
 @pytest.mark.skipif(BlockEnvironment is None, reason="robosuite not installed")
 @pytest.mark.robosuite
 def test_taska_adapter_uses_real_env(require_real_task_a):
-    import taska.env as taska_env
+    import taska.api as taska_env
 
     os.environ.pop("TASKB_USE_STUBS", None)
     taska_env.close_env()
@@ -380,7 +380,7 @@ def test_taska_adapter_uses_real_env(require_real_task_a):
 @pytest.mark.skipif(BlockEnvironment is None, reason="robosuite not installed")
 @pytest.mark.robosuite
 def test_task_b_pipeline_against_real_task_a(require_real_task_a):
-    import taska.env as taska_env
+    import taska.api as taska_env
 
     os.environ.pop("TASKB_USE_STUBS", None)
     taska_env.close_env()

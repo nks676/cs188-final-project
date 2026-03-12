@@ -16,7 +16,7 @@ logger = logging.getLogger("taskb.eval_runner")
 def _build_env_api():
     """Return the env_api dict for the sandbox."""
     try:
-        from taska.env import (
+        from taska.api import (
             get_scene_state,
             get_workspace_bounds,
             pick_and_place,

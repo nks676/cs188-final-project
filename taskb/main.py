@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(messag
 def _get_api(use_stub: bool = None):
     """Return (env_api dict, use_stub bool, reset callable)."""
     try:
-        from taska.env import (
+        from taska.api import (
             get_scene_state,
             get_workspace_bounds,
             pick_and_place,
@@ -28,7 +28,7 @@ def _get_api(use_stub: bool = None):
             from taskb.stubs import get_scene_state, get_workspace_bounds, pick_and_place
             from taskb.stubs import reset_scene as reset_env
         else:
-            from taska.env import get_scene_state, get_workspace_bounds, pick_and_place, reset_env
+            from taska.api import get_scene_state, get_workspace_bounds, pick_and_place, reset_env
         _use_stub = use_stub
 
     from taskb.spatial import (

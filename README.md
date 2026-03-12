@@ -4,12 +4,11 @@ Task B takes natural language, gets Gemini-generated Python code, validates it i
 
 ## Repo layout
 
-- `task_a/`: real robosuite backend (`BlockEnvironment` and low-level control/perception).
-- `taska/`: compatibility adapter (`taska.env`) used by Task B.
+- `taska/`: robosuite backend plus Task B adapter API.
 - `taskb/`: prompt, LLM call, sandbox, evaluator, CLI.
 - `tests/`: unit and integration tests.
 
-`task_a` and `taska` both exist intentionally: `taska.env` is a thin bridge API while `task_a` contains the actual implementation.
+Task B uses the function adapter in `taska/api.py`; the rest of the real simulator implementation also lives under `taska/`.
 
 ## Setup
 

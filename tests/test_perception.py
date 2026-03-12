@@ -16,8 +16,8 @@ import pytest
 pytestmark = pytest.mark.robosuite
 pytest.importorskip("robosuite")
 
-from task_a.env import BlockManipulationEnv
-from task_a.perception import get_scene_state, get_workspace_bounds
+from taska.env import BlockManipulationEnv
+from taska.perception import get_scene_state, get_workspace_bounds
 
 RENDER_STEPS = 200
 
