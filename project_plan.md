@@ -1,5 +1,17 @@
 # Project Plan: Code-as-Policies for Robosuite Block Manipulation
 
+## Current Task B Status
+
+Task B is implemented as a standalone Python pipeline under `taskb/`. The current code path:
+
+- builds a prompt with a fixed API reference and few-shot examples
+- calls Gemini directly via the `google-genai` SDK
+- validates generated Python with the sandbox in `taskb/sandbox.py`
+- executes against either `taska.env` or deterministic stubs in `taskb/stubs.py`
+- evaluates outcomes and logs each episode to `logs/episodes.jsonl`
+
+This means Task B currently uses a direct SDK call plus a local execution sandbox, not MCP tool wiring.
+
 ## 1) Goal
 
 Build a system where an LLM receives natural-language instructions and **generates executable Python code** (not just JSON action labels) that composes low-level robot primitives to manipulate blocks in a robosuite tabletop environment. Inspired by [Code as Policies](https://code-as-policies.github.io), the LLM acts as a policy writer — it outputs Python snippets that call perception utilities, compute spatial targets, and sequence gripper actions.
@@ -13,7 +25,7 @@ The LLM outputs a JSON blob choosing between `move_block` and `stack_block`. Thi
 
 ### New plan (CaP-inspired)
 The LLM is prompted with:
-- A library of **low-level primitive APIs** (perception + control), exposed as MCP tools.
+- A library of **low-level primitive APIs** (perception + control), exposed in the Python execution sandbox.
 - A set of **few-shot examples** showing how natural-language commands map to Python code that calls those APIs.
 
 The LLM receives **only the user instruction** — no scene state is injected into the prompt. Instead, the generated code must **discover the scene** by calling MCP perception tools (e.g., `get_obj_names()`, `get_obj_pos(...)`).
@@ -57,7 +69,7 @@ get_workspace_bounds() -> tuple[np.ndarray, np.ndarray]
 # Returns (lower_corner, upper_corner) of the workspace table surface.
 ```
 
-`get_scene_state()` is exposed as an **MCP tool**. The LLM calls it once at the start of generated code to discover all block attributes and their IDs — no scene context is injected into the prompt.
+`get_scene_state()` is exposed through the Task B execution environment. The LLM calls it once at the start of generated code to discover all block attributes and their IDs — no scene context is injected into the prompt.
 
 ### Control Primitives
 ```python
