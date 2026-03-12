@@ -8,15 +8,27 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(messag
 
 
 def _get_api(use_stub: bool = None):
-    """Return (env_api dict, use_stub bool)."""
+    """Return (env_api dict, use_stub bool, reset callable)."""
     try:
-        from taska.env import get_scene_state, get_workspace_bounds, pick_and_place
-        _use_stub = False
+        from taska.env import (
+            get_scene_state,
+            get_workspace_bounds,
+            pick_and_place,
+            reset_env,
+            using_stub_fallback,
+        )
+        _use_stub = using_stub_fallback()
     except ImportError:
         from taskb.stubs import get_scene_state, get_workspace_bounds, pick_and_place
+        from taskb.stubs import reset_scene as reset_env
         _use_stub = True
 
     if use_stub is not None:
+        if use_stub:
+            from taskb.stubs import get_scene_state, get_workspace_bounds, pick_and_place
+            from taskb.stubs import reset_scene as reset_env
+        else:
+            from taska.env import get_scene_state, get_workspace_bounds, pick_and_place, reset_env
         _use_stub = use_stub
 
     from taskb.spatial import (
@@ -40,7 +52,7 @@ def _get_api(use_stub: bool = None):
         "make_line_positions": make_line_positions,
         "make_circle_positions": make_circle_positions,
         "say": say,
-    }, _use_stub
+    }, _use_stub, reset_env
 
 
 def run_instruction(instruction: str, category: str = "?") -> bool:
@@ -50,14 +62,9 @@ def run_instruction(instruction: str, category: str = "?") -> bool:
     from taskb.logger import log_episode
     from taskb.sandbox import run_code
 
-    env_api, use_stub = _get_api()
-
-    if use_stub:
-        from taskb.stubs import get_scene_state, reset_scene
-        reset_scene()
-    else:
-        from taska.env import get_scene_state
-
+    env_api, use_stub, reset_env = _get_api()
+    reset_env()
+    get_scene_state = env_api["get_scene_state"]
     scene_before = copy.deepcopy(get_scene_state())
 
     print(f"\n>>> Instruction: {instruction}")

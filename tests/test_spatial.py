@@ -1,11 +1,16 @@
 """Unit tests for taskb/spatial.py."""
 import math
+import os
 
 import numpy as np
 import pytest
 
+os.environ.setdefault("TASKB_USE_STUBS", "1")
+
 from taskb.stubs import _WS_MIN, _WS_MAX
+import taskb.spatial as spatial
 from taskb.spatial import (
+    CORNER_INSET_RATIO,
     get_corner_pos,
     get_midpoint,
     get_point_offset,
@@ -18,6 +23,15 @@ from taskb.spatial import (
 WS_MIN = _WS_MIN
 WS_MAX = _WS_MAX
 Z = WS_MIN[2]
+X_INSET = CORNER_INSET_RATIO * (WS_MAX[0] - WS_MIN[0])
+Y_INSET = CORNER_INSET_RATIO * (WS_MAX[1] - WS_MIN[1])
+
+
+@pytest.fixture(autouse=True)
+def force_stub_workspace_bounds():
+    spatial._get_workspace_bounds = None
+    yield
+    spatial._get_workspace_bounds = None
 
 
 # ── get_corner_pos ────────────────────────────────────────────────────────────
@@ -25,26 +39,26 @@ Z = WS_MIN[2]
 class TestGetCornerPos:
     def test_top_left(self):
         p = get_corner_pos("top left")
-        assert p[0] == pytest.approx(WS_MIN[0])
-        assert p[1] == pytest.approx(WS_MAX[1])
+        assert p[0] == pytest.approx(WS_MIN[0] + X_INSET)
+        assert p[1] == pytest.approx(WS_MIN[1] + Y_INSET)
         assert p[2] == pytest.approx(Z)
 
     def test_top_right(self):
         p = get_corner_pos("top right")
-        assert p[0] == pytest.approx(WS_MAX[0])
-        assert p[1] == pytest.approx(WS_MAX[1])
+        assert p[0] == pytest.approx(WS_MAX[0] - X_INSET)
+        assert p[1] == pytest.approx(WS_MIN[1] + Y_INSET)
         assert p[2] == pytest.approx(Z)
 
     def test_bottom_left(self):
         p = get_corner_pos("bottom left")
-        assert p[0] == pytest.approx(WS_MIN[0])
-        assert p[1] == pytest.approx(WS_MIN[1])
+        assert p[0] == pytest.approx(WS_MIN[0] + X_INSET)
+        assert p[1] == pytest.approx(WS_MAX[1] - Y_INSET)
         assert p[2] == pytest.approx(Z)
 
     def test_bottom_right(self):
         p = get_corner_pos("bottom right")
-        assert p[0] == pytest.approx(WS_MAX[0])
-        assert p[1] == pytest.approx(WS_MIN[1])
+        assert p[0] == pytest.approx(WS_MAX[0] - X_INSET)
+        assert p[1] == pytest.approx(WS_MAX[1] - Y_INSET)
         assert p[2] == pytest.approx(Z)
 
     def test_invalid(self):
@@ -70,12 +84,12 @@ class TestGetSidePos:
 
     def test_top(self):
         p = get_side_pos("top")
-        assert p[1] == pytest.approx(WS_MAX[1])
+        assert p[1] == pytest.approx(WS_MIN[1])
         assert p[0] == pytest.approx((WS_MIN[0] + WS_MAX[0]) / 2)
 
     def test_bottom(self):
         p = get_side_pos("bottom")
-        assert p[1] == pytest.approx(WS_MIN[1])
+        assert p[1] == pytest.approx(WS_MAX[1])
 
     def test_z_preserved(self):
         for side in ("left", "right", "top", "bottom"):

@@ -1,3 +1,4 @@
 google-genai>=0.8
 numpy
 python-dotenv
+pytest

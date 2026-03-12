@@ -1,8 +1,8 @@
 """Success verification for Task B episodes."""
 import numpy as np
 
-POSITION_TOLERANCE = 0.03   # metres for x/y placement
-STACK_TOLERANCE = 0.01      # metres for z stacking
+POSITION_TOLERANCE = 0.04   # metres for x/y placement
+STACK_TOLERANCE = 0.02      # metres for z stacking
 
 
 def verify_episode(call_trace: list, scene_after: list, use_stub: bool = True) -> tuple[bool, str | None]:

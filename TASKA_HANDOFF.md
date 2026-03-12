@@ -1,6 +1,6 @@
 # Task A Integration Handoff
 
-Task B is ready to integrate against a real `taska.env` module. The Task B side already works end to end with Gemini plus deterministic stubs, so the main requirement is that Task A matches the existing environment contract exactly.
+Task B is ready to run against the real `taska.env` backend by default. Stubs now exist only for deterministic tests, so the main requirement is that Task A matches the existing environment contract exactly.
 
 ## Required `taska.env` API
 
@@ -44,24 +44,27 @@ Requirements:
 from taska.env import get_scene_state, get_workspace_bounds, pick_and_place
 ```
 
-If that import fails, it falls back to `taskb.stubs`. Once `taska.env` exists and imports cleanly, Task B will automatically use it.
+Task B now uses the real backend by default. Stub behavior should only be enabled deliberately for tests via `TASKB_USE_STUBS=1`.
 
 ## Smoke Tests After Integration
 
 Run these after adding `taska.env`:
 
 ```bash
-pytest -q
-python -m taskb.main run "Put the red block in the top right corner"
-python -m taskb.main run "Stack the green block on the red block."
-python -m taskb.main run "If the red block is to the left of the blue block, swap them."
-python -m taskb.main run "Cut the block in half."
+source .venv/bin/activate
+pytest -q -m "not robosuite"
+TASKB_REQUIRE_REAL_TASKA=1 pytest -q -m robosuite
+TASKB_REQUIRE_REAL_TASKA=1 python -m taskb.main run "Put the red block in the top right corner"
+TASKB_REQUIRE_REAL_TASKA=1 python -m taskb.main run "Stack the green block on the red block."
+TASKB_REQUIRE_REAL_TASKA=1 python -m taskb.main run "If the red block is to the left of the blue block, swap them."
+TASKB_REQUIRE_REAL_TASKA=1 python -m taskb.main run "Cut the block in half."
 ```
 
 What to watch for:
 
 - placement and stacking should return `[SUCCESS]`
 - rejection instructions should call `say(...)` and avoid motion
+- if `TASKB_REQUIRE_REAL_TASKA=1`, any silent fallback to stubs should become an error
 - `logs/episodes.jsonl` should contain a complete episode record
 - if real-env evaluation fails, inspect `scene_before`, `scene_after`, and `call_trace` in the log
 

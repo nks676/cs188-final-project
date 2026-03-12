@@ -16,10 +16,17 @@ logger = logging.getLogger("taskb.eval_runner")
 def _build_env_api():
     """Return the env_api dict for the sandbox."""
     try:
-        from taska.env import get_scene_state, get_workspace_bounds, pick_and_place
-        use_stub = False
+        from taska.env import (
+            get_scene_state,
+            get_workspace_bounds,
+            pick_and_place,
+            reset_env,
+            using_stub_fallback,
+        )
+        use_stub = using_stub_fallback()
     except ImportError:
         from taskb.stubs import get_scene_state, get_workspace_bounds, pick_and_place
+        from taskb.stubs import reset_scene as reset_env
         use_stub = True
 
     from taskb.spatial import (
@@ -44,7 +51,7 @@ def _build_env_api():
         "make_circle_positions": make_circle_positions,
         "say": say,
     }
-    return env_api, use_stub
+    return env_api, use_stub, reset_env
 
 
 def run_episode(item: dict) -> dict:
@@ -53,16 +60,10 @@ def run_episode(item: dict) -> dict:
     category = item["category"]
 
     # Snapshot scene before
-    try:
-        from taska.env import get_scene_state
-        use_stub = False
-    except ImportError:
-        from taskb.stubs import get_scene_state, reset_scene
-        reset_scene()
-        use_stub = True
-
+    env_api, use_stub, reset_env = _build_env_api()
+    reset_env()
+    get_scene_state = env_api["get_scene_state"]
     scene_before = copy.deepcopy(get_scene_state())
-    env_api, use_stub = _build_env_api()
 
     generated_code = ""
     parse_ok = False

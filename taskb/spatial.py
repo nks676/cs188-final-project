@@ -3,6 +3,7 @@ import numpy as np
 
 # Lazy import to avoid circular dependency at module load time
 _get_workspace_bounds = None
+CORNER_INSET_RATIO = 0.10
 
 
 def _ws_bounds():
@@ -23,19 +24,30 @@ def get_corner_pos(corner: str) -> np.ndarray:
     corner: "top left" | "top right" | "bottom left" | "bottom right"
     z is the table surface height (ws_min[2]).
 
-    "top" means positive y (far from robot), "bottom" means negative y (near robot).
-    "left" means negative x, "right" means positive x.
+    Uses a 10% inward inset from workspace edges so targets are reachable and
+    less likely to fail near the table boundary.
+
+    Perspective convention:
+    - "top" / "bottom" are based on the human viewer perspective in the default
+      camera view (top maps to lower y, bottom maps to higher y).
+    - "left" means negative x, "right" means positive x.
     """
     ws_min, ws_max = _ws_bounds()
     z = ws_min[2]
+    x_span = ws_max[0] - ws_min[0]
+    y_span = ws_max[1] - ws_min[1]
+    x_left = ws_min[0] + CORNER_INSET_RATIO * x_span
+    x_right = ws_max[0] - CORNER_INSET_RATIO * x_span
+    y_top = ws_min[1] + CORNER_INSET_RATIO * y_span
+    y_bottom = ws_max[1] - CORNER_INSET_RATIO * y_span
     if corner == "top left":
-        return np.array([ws_min[0], ws_max[1], z])
+        return np.array([x_left, y_top, z])
     elif corner == "top right":
-        return np.array([ws_max[0], ws_max[1], z])
+        return np.array([x_right, y_top, z])
     elif corner == "bottom left":
-        return np.array([ws_min[0], ws_min[1], z])
+        return np.array([x_left, y_bottom, z])
     elif corner == "bottom right":
-        return np.array([ws_max[0], ws_min[1], z])
+        return np.array([x_right, y_bottom, z])
     else:
         raise ValueError(f"Unknown corner: {corner!r}. Use 'top left', 'top right', 'bottom left', 'bottom right'.")
 
@@ -46,6 +58,8 @@ def get_side_pos(side: str) -> np.ndarray:
 
     side: "left" | "right" | "top" | "bottom"
     z is the table surface height.
+
+    "top" / "bottom" follow viewer perspective (top -> lower y).
     """
     ws_min, ws_max = _ws_bounds()
     z = ws_min[2]
@@ -56,9 +70,9 @@ def get_side_pos(side: str) -> np.ndarray:
     elif side == "right":
         return np.array([ws_max[0], cy, z])
     elif side == "top":
-        return np.array([cx, ws_max[1], z])
-    elif side == "bottom":
         return np.array([cx, ws_min[1], z])
+    elif side == "bottom":
+        return np.array([cx, ws_max[1], z])
     else:
         raise ValueError(f"Unknown side: {side!r}. Use 'left', 'right', 'top', 'bottom'.")
 
