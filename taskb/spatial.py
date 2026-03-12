@@ -3,7 +3,7 @@ import numpy as np
 
 # Lazy import to avoid circular dependency at module load time
 _get_workspace_bounds = None
-CORNER_INSET_RATIO = 0.10
+CORNER_INSET_RATIO = 0.20
 
 
 def _ws_bounds():
@@ -28,18 +28,22 @@ def get_corner_pos(corner: str) -> np.ndarray:
     less likely to fail near the table boundary.
 
     Perspective convention:
-    - "top" / "bottom" are based on the human viewer perspective in the default
-      camera view (top maps to lower y, bottom maps to higher y).
-    - "left" means negative x, "right" means positive x.
+    - Commands are interpreted in viewer terms, then mapped into the opposite
+      robot frame orientation used by the environment.
+    - This means:
+      - "top" maps to higher y in workspace coordinates
+      - "bottom" maps to lower y in workspace coordinates
+      - "left" maps to higher x in workspace coordinates
+      - "right" maps to lower x in workspace coordinates
     """
     ws_min, ws_max = _ws_bounds()
     z = ws_min[2]
     x_span = ws_max[0] - ws_min[0]
     y_span = ws_max[1] - ws_min[1]
-    x_left = ws_min[0] + CORNER_INSET_RATIO * x_span
-    x_right = ws_max[0] - CORNER_INSET_RATIO * x_span
-    y_top = ws_min[1] + CORNER_INSET_RATIO * y_span
-    y_bottom = ws_max[1] - CORNER_INSET_RATIO * y_span
+    x_left = ws_max[0] - CORNER_INSET_RATIO * x_span
+    x_right = ws_min[0] + CORNER_INSET_RATIO * x_span
+    y_top = ws_max[1] - CORNER_INSET_RATIO * y_span
+    y_bottom = ws_min[1] + CORNER_INSET_RATIO * y_span
     if corner == "top left":
         return np.array([x_left, y_top, z])
     elif corner == "top right":
@@ -59,20 +63,21 @@ def get_side_pos(side: str) -> np.ndarray:
     side: "left" | "right" | "top" | "bottom"
     z is the table surface height.
 
-    "top" / "bottom" follow viewer perspective (top -> lower y).
+    "top" / "bottom" and "left" / "right" are mapped into the opposite robot
+    frame orientation used by the environment.
     """
     ws_min, ws_max = _ws_bounds()
     z = ws_min[2]
     cx = (ws_min[0] + ws_max[0]) / 2
     cy = (ws_min[1] + ws_max[1]) / 2
     if side == "left":
-        return np.array([ws_min[0], cy, z])
-    elif side == "right":
         return np.array([ws_max[0], cy, z])
+    elif side == "right":
+        return np.array([ws_min[0], cy, z])
     elif side == "top":
-        return np.array([cx, ws_min[1], z])
-    elif side == "bottom":
         return np.array([cx, ws_max[1], z])
+    elif side == "bottom":
+        return np.array([cx, ws_min[1], z])
     else:
         raise ValueError(f"Unknown side: {side!r}. Use 'left', 'right', 'top', 'bottom'.")
 

@@ -39,26 +39,26 @@ def force_stub_workspace_bounds():
 class TestGetCornerPos:
     def test_top_left(self):
         p = get_corner_pos("top left")
-        assert p[0] == pytest.approx(WS_MIN[0] + X_INSET)
-        assert p[1] == pytest.approx(WS_MIN[1] + Y_INSET)
+        assert p[0] == pytest.approx(WS_MAX[0] - X_INSET)
+        assert p[1] == pytest.approx(WS_MAX[1] - Y_INSET)
         assert p[2] == pytest.approx(Z)
 
     def test_top_right(self):
         p = get_corner_pos("top right")
-        assert p[0] == pytest.approx(WS_MAX[0] - X_INSET)
-        assert p[1] == pytest.approx(WS_MIN[1] + Y_INSET)
-        assert p[2] == pytest.approx(Z)
-
-    def test_bottom_left(self):
-        p = get_corner_pos("bottom left")
         assert p[0] == pytest.approx(WS_MIN[0] + X_INSET)
         assert p[1] == pytest.approx(WS_MAX[1] - Y_INSET)
         assert p[2] == pytest.approx(Z)
 
+    def test_bottom_left(self):
+        p = get_corner_pos("bottom left")
+        assert p[0] == pytest.approx(WS_MAX[0] - X_INSET)
+        assert p[1] == pytest.approx(WS_MIN[1] + Y_INSET)
+        assert p[2] == pytest.approx(Z)
+
     def test_bottom_right(self):
         p = get_corner_pos("bottom right")
-        assert p[0] == pytest.approx(WS_MAX[0] - X_INSET)
-        assert p[1] == pytest.approx(WS_MAX[1] - Y_INSET)
+        assert p[0] == pytest.approx(WS_MIN[0] + X_INSET)
+        assert p[1] == pytest.approx(WS_MIN[1] + Y_INSET)
         assert p[2] == pytest.approx(Z)
 
     def test_invalid(self):
@@ -74,22 +74,22 @@ class TestGetCornerPos:
 class TestGetSidePos:
     def test_left(self):
         p = get_side_pos("left")
-        assert p[0] == pytest.approx(WS_MIN[0])
+        assert p[0] == pytest.approx(WS_MAX[0])
         assert p[1] == pytest.approx((WS_MIN[1] + WS_MAX[1]) / 2)
         assert p[2] == pytest.approx(Z)
 
     def test_right(self):
         p = get_side_pos("right")
-        assert p[0] == pytest.approx(WS_MAX[0])
+        assert p[0] == pytest.approx(WS_MIN[0])
 
     def test_top(self):
         p = get_side_pos("top")
-        assert p[1] == pytest.approx(WS_MIN[1])
+        assert p[1] == pytest.approx(WS_MAX[1])
         assert p[0] == pytest.approx((WS_MIN[0] + WS_MAX[0]) / 2)
 
     def test_bottom(self):
         p = get_side_pos("bottom")
-        assert p[1] == pytest.approx(WS_MAX[1])
+        assert p[1] == pytest.approx(WS_MIN[1])
 
     def test_z_preserved(self):
         for side in ("left", "right", "top", "bottom"):

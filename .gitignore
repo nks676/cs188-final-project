@@ -1,7 +1,7 @@
-AGENTS.md
 .pytest_cache/
 __pycache__/
 *.py[cod]
 logs/
 .env
 .venv/
+.DS_Store
