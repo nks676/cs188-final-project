@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code-as-Policies for Robotic Block Manipulation | CS 188</title>
+    <style>
+        :root {
+            --bg: #0f111a;
+            --surface: #1a1d2e;
+            --border: #2a2d3e;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #818cf8;
+            --accent2: #34d399;
+            --accent3: #f472b6;
+            --code-bg: #151829;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+        }
+
+        /* --- Hero --- */
+        .hero {
+            min-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 4rem 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 60% 50% at 50% 0%, rgba(129,140,248,0.15), transparent),
+                radial-gradient(ellipse 40% 40% at 80% 80%, rgba(52,211,153,0.08), transparent);
+            pointer-events: none;
+        }
+
+        .hero-badge {
+            display: inline-block;
+            padding: 0.35rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            font-size: 0.85rem;
+            color: var(--muted);
+            margin-bottom: 2rem;
+            backdrop-filter: blur(4px);
+        }
+
+        .hero h1 {
+            font-size: clamp(2.2rem, 5vw, 3.8rem);
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            line-height: 1.15;
+            max-width: 800px;
+            margin-bottom: 1.5rem;
+        }
+
+        .hero h1 .gradient {
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            font-size: 1.15rem;
+            color: var(--muted);
+            max-width: 600px;
+            margin-bottom: 2.5rem;
+        }
+
+        .hero-cta {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.75rem;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+        }
+        .btn-primary:hover { filter: brightness(1.15); transform: translateY(-1px); }
+
+        .btn-outline {
+            border: 1px solid var(--border);
+            color: var(--text);
+            background: transparent;
+        }
+        .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* --- Sections --- */
+        section {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 5rem 2rem;
+        }
+
+        .section-label {
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--accent);
+            margin-bottom: 0.75rem;
+        }
+
+        h2 {
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 1rem;
+        }
+
+        h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: var(--muted);
+            font-size: 1.05rem;
+            max-width: 650px;
+            margin-bottom: 3rem;
+        }
+
+        /* --- Video --- */
+        .video-section {
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 900px;
+            margin: 0 auto;
+            aspect-ratio: 16/9;
+            background: var(--code-bg);
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .video-wrapper video,
+        .video-wrapper iframe {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0; left: 0;
+            border: none;
+        }
+
+        .video-placeholder {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--muted);
+            gap: 1rem;
+        }
+
+        .video-placeholder svg { opacity: 0.4; }
+
+        /* --- Architecture diagram --- */
+        .arch-diagram {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 1.5rem;
+            align-items: center;
+            margin: 3rem 0;
+        }
+
+        .arch-box {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 2rem;
+        }
+
+        .arch-box h3 {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .arch-box ul {
+            list-style: none;
+            margin-top: 1rem;
+        }
+
+        .arch-box ul li {
+            padding: 0.35rem 0;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        .arch-box ul li code {
+            color: var(--accent2);
+            font-size: 0.85rem;
+            background: rgba(52,211,153,0.1);
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+        }
+
+        .arch-arrow {
+            font-size: 2rem;
+            color: var(--accent);
+            text-align: center;
+        }
+
+        /* --- Pipeline flow --- */
+        .pipeline {
+            display: flex;
+            gap: 0;
+            align-items: stretch;
+            margin: 3rem 0;
+            overflow-x: auto;
+            padding-bottom: 1rem;
+        }
+
+        .pipeline-step {
+            flex: 1;
+            min-width: 150px;
+            text-align: center;
+            padding: 1.5rem 1rem;
+            position: relative;
+        }
+
+        .pipeline-step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-top: 10px solid transparent;
+            border-bottom: 10px solid transparent;
+            border-left: 10px solid var(--accent);
+        }
+
+        .pipeline-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 0.75rem;
+            font-size: 1.4rem;
+        }
+
+        .pipeline-step:nth-child(1) .pipeline-icon { background: rgba(129,140,248,0.15); }
+        .pipeline-step:nth-child(2) .pipeline-icon { background: rgba(244,114,182,0.15); }
+        .pipeline-step:nth-child(3) .pipeline-icon { background: rgba(251,191,36,0.15); }
+        .pipeline-step:nth-child(4) .pipeline-icon { background: rgba(52,211,153,0.15); }
+        .pipeline-step:nth-child(5) .pipeline-icon { background: rgba(96,165,250,0.15); }
+
+        .pipeline-step strong {
+            display: block;
+            font-size: 0.9rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .pipeline-step span {
+            font-size: 0.8rem;
+            color: var(--muted);
+        }
+
+        /* --- Results --- */
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: border-color 0.2s;
+        }
+        .stat-card:hover { border-color: var(--accent); }
+
+        .stat-card .number {
+            font-size: 2.2rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+        }
+
+        .stat-card .label {
+            font-size: 0.8rem;
+            color: var(--muted);
+            margin-top: 0.25rem;
+        }
+
+        .green { color: var(--accent2); }
+        .purple { color: var(--accent); }
+        .pink { color: var(--accent3); }
+
+        /* --- Table --- */
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 2rem 0;
+            font-size: 0.92rem;
+        }
+
+        .results-table th {
+            text-align: left;
+            padding: 0.75rem 1rem;
+            border-bottom: 2px solid var(--border);
+            color: var(--muted);
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .results-table td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .results-table tr:hover td {
+            background: rgba(129,140,248,0.04);
+        }
+
+        .bar-cell {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .bar-track {
+            flex: 1;
+            height: 8px;
+            background: var(--code-bg);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.6s ease;
+        }
+
+        .bar-fill.high { background: var(--accent2); }
+        .bar-fill.mid { background: #fbbf24; }
+        .bar-fill.low { background: var(--accent3); }
+
+        .badge {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-yes { background: rgba(52,211,153,0.15); color: var(--accent2); }
+        .badge-no { background: rgba(244,114,182,0.15); color: var(--accent3); }
+
+        /* --- Code block --- */
+        .code-example {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            margin: 1.5rem 0;
+        }
+
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.8rem;
+        }
+
+        .code-header .tag {
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+        .tag-instruction { background: rgba(129,140,248,0.15); color: var(--accent); }
+        .tag-success { background: rgba(52,211,153,0.15); color: var(--accent2); }
+
+        .code-example pre {
+            padding: 1.25rem;
+            overflow-x: auto;
+            font-size: 0.88rem;
+            line-height: 1.65;
+        }
+
+        .code-example code {
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            color: var(--text);
+        }
+
+        .code-tabs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        /* --- Cards grid --- */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 1.75rem;
+        }
+
+        .card h3 { color: var(--text); }
+
+        .card p {
+            color: var(--muted);
+            font-size: 0.92rem;
+            margin-top: 0.5rem;
+        }
+
+        /* --- Team --- */
+        .team-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .team-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .team-avatar {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .team-card h3 { text-align: center; }
+
+        .team-card p {
+            color: var(--muted);
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+        }
+
+        /* --- Footer --- */
+        footer {
+            text-align: center;
+            padding: 3rem 2rem;
+            border-top: 1px solid var(--border);
+            color: var(--muted);
+            font-size: 0.85rem;
+        }
+
+        footer a { color: var(--accent); text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
+
+        /* --- Responsive --- */
+        @media (max-width: 768px) {
+            .arch-diagram {
+                grid-template-columns: 1fr;
+            }
+            .arch-arrow { transform: rotate(90deg); }
+            .code-tabs { grid-template-columns: 1fr; }
+            .pipeline { flex-direction: column; }
+            .pipeline-step:not(:last-child)::after { display: none; }
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- ============ HERO ============ -->
+<header class="hero">
+    <div class="hero-badge">CS 188 Final Project &mdash; Spring 2025</div>
+    <h1>
+        <span class="gradient">Code-as-Policies</span><br>
+        for Robotic Block Manipulation
+    </h1>
+    <p>An LLM generates executable Python code from natural language to control a simulated robot arm &mdash; no fixed action labels, just code.</p>
+    <div class="hero-cta">
+        <a href="#video" class="btn btn-primary">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21"></polygon></svg>
+            Watch Demo
+        </a>
+        <a href="https://github.com/your-repo" class="btn btn-outline" target="_blank">
+            <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.385-1.335-1.755-1.335-1.755-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.605-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 21.795 24 17.295 24 12c0-6.63-5.37-12-12-12z"/></svg>
+            GitHub
+        </a>
+    </div>
+</header>
+
+<!-- ============ DEMO VIDEO ============ -->
+<section class="video-section" id="video">
+    <div style="max-width:1100px; margin:0 auto; padding:5rem 2rem;">
+        <div class="section-label">Demo</div>
+        <h2>System in Action</h2>
+        <p class="subtitle">Watch the full pipeline: natural language instruction &rarr; LLM code generation &rarr; robot execution.</p>
+
+        <div class="video-wrapper">
+            <!--
+                === HOW TO ADD YOUR VIDEO ===
+
+                Option A: Local MP4 file (recommended)
+                Uncomment the <video> tag and replace "demo.mp4" with your file name.
+                Place the video file in this same /docs folder.
+
+                Option B: YouTube embed
+                Uncomment the <iframe> tag and paste your YouTube embed URL.
+            -->
+
+            <video controls>
+                <source src="recording.mp4" type="video/mp4">
+            </video>
+
+            <!-- <iframe src="https://www.youtube.com/embed/YOUR_VIDEO_ID" allowfullscreen></iframe> -->
+
+
+        </div>
+    </div>
+</section>
+
+<!-- ============ PROBLEM ============ -->
+<section id="problem">
+    <div class="section-label">Problem</div>
+    <h2>Why Code, Not Labels?</h2>
+    <p class="subtitle">Traditional robot control maps language to fixed action labels &mdash; basically classification. It can't handle novel spatial reasoning, composition, or conditionals.</p>
+
+    <div class="cards-grid">
+        <div class="card">
+            <h3>The Old Way</h3>
+            <p>LLM outputs a JSON blob choosing between <code>move_block</code> and <code>stack_block</code>. No reasoning, no spatial computation, no composition. Fails on any instruction outside the predefined set.</p>
+        </div>
+        <div class="card">
+            <h3>Our Approach</h3>
+            <p>The LLM writes executable Python that discovers the scene, computes spatial targets, and sequences actions using loops, conditionals, and helper functions &mdash; all from a single natural language instruction.</p>
+        </div>
+        <div class="card">
+            <h3>The Challenge</h3>
+            <p>Generated code must be syntactically valid, safe to execute, and correct &mdash; all on the first try, with no scene state in the prompt. The LLM must call <code>get_scene_state()</code> to discover the world.</p>
+        </div>
+    </div>
+</section>
+
+<!-- ============ METHOD ============ -->
+<section id="method">
+    <div class="section-label">Method</div>
+    <h2>System Architecture</h2>
+    <p class="subtitle">Two cleanly separated modules: a robosuite simulation backend and an LLM code-generation pipeline.</p>
+
+    <!-- Pipeline flow -->
+    <div class="pipeline">
+        <div class="pipeline-step">
+            <div class="pipeline-icon">💬</div>
+            <strong>Instruction</strong>
+            <span>Natural language</span>
+        </div>
+        <div class="pipeline-step">
+            <div class="pipeline-icon">🧠</div>
+            <strong>Gemini Flash</strong>
+            <span>Code generation</span>
+        </div>
+        <div class="pipeline-step">
+            <div class="pipeline-icon">🛡</div>
+            <strong>Safety Check</strong>
+            <span>AST validation</span>
+        </div>
+        <div class="pipeline-step">
+            <div class="pipeline-icon">⚡</div>
+            <strong>Sandbox Exec</strong>
+            <span>Run code</span>
+        </div>
+        <div class="pipeline-step">
+            <div class="pipeline-icon">🤖</div>
+            <strong>Robot Action</strong>
+            <span>MuJoCo sim</span>
+        </div>
+    </div>
+
+    <!-- Architecture boxes -->
+    <div class="arch-diagram">
+        <div class="arch-box">
+            <h3>🤖 Task A &mdash; Robot Backend</h3>
+            <ul>
+                <li><code>BlockManipulationEnv</code> &mdash; MuJoCo environment, 6 blocks</li>
+                <li><code>PickAndPlaceController</code> &mdash; 10-phase motion sequence</li>
+                <li><code>Perception</code> &mdash; block positions, colors, sizes</li>
+                <li>Panda arm, 0.8m&times;0.8m workspace</li>
+            </ul>
+        </div>
+        <div class="arch-arrow">&harr;</div>
+        <div class="arch-box">
+            <h3>🧠 Task B &mdash; LLM Pipeline</h3>
+            <ul>
+                <li><code>Prompt Builder</code> &mdash; API ref + 11 few-shot examples</li>
+                <li><code>Gemini 2.5 Flash</code> &mdash; code generation with retry</li>
+                <li><code>AST Sandbox</code> &mdash; whitelist safety checker</li>
+                <li><code>Evaluator</code> &mdash; position-tolerance verification</li>
+            </ul>
+        </div>
+    </div>
+
+    <h3 style="margin-top:3rem;">Key Design Decisions</h3>
+    <div class="cards-grid">
+        <div class="card">
+            <h3>Type-Dispatch API</h3>
+            <p><code>pick_and_place(id, target)</code> handles both placement (array) and stacking (int). One primitive, two modes &mdash; reduces LLM confusion.</p>
+        </div>
+        <div class="card">
+            <h3>No Scene in Prompt</h3>
+            <p>The LLM receives zero scene state. Generated code must call <code>get_scene_state()</code> to discover blocks, forcing genuinely dynamic programs.</p>
+        </div>
+        <div class="card">
+            <h3>Multi-Layer Safety</h3>
+            <p>AST parsing blocks imports, exec, eval, file I/O, and network calls. Code runs in a restricted namespace with only the allowed API.</p>
+        </div>
+    </div>
+</section>
+
+<!-- ============ RESULTS ============ -->
+<section id="results">
+    <div class="section-label">Results</div>
+    <h2>Evaluation</h2>
+    <p class="subtitle">41 instructions across 6 categories, tested one-shot with Gemini 2.5 Flash.</p>
+
+    <div class="results-grid">
+        <div class="stat-card">
+            <div class="number green">82.9%</div>
+            <div class="label">Overall Success Rate</div>
+        </div>
+        <div class="stat-card">
+            <div class="number purple">34/41</div>
+            <div class="label">Instructions Passed</div>
+        </div>
+        <div class="stat-card">
+            <div class="number green">100%</div>
+            <div class="label">Rejection Accuracy</div>
+        </div>
+        <div class="stat-card">
+            <div class="number purple">87.8%</div>
+            <div class="label">Code Parse Rate</div>
+        </div>
+        <div class="stat-card">
+            <div class="number green">5/6</div>
+            <div class="label">Categories Met Target</div>
+        </div>
+        <div class="stat-card">
+            <div class="number pink">~3,800</div>
+            <div class="label">Lines of Code</div>
+        </div>
+    </div>
+
+    <table class="results-table">
+        <thead>
+            <tr>
+                <th>Category</th>
+                <th>N</th>
+                <th style="text-align:center">Success</th>
+                <th>Rate</th>
+                <th>Target</th>
+                <th style="text-align:center">Met?</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>A</strong> &mdash; Direct Placement</td>
+                <td>10</td>
+                <td style="text-align:center">9</td>
+                <td>
+                    <div class="bar-cell">
+                        <div class="bar-track"><div class="bar-fill high" style="width:90%"></div></div>
+                        <span>90.0%</span>
+                    </div>
+                </td>
+                <td>&ge;90%</td>
+                <td style="text-align:center"><span class="badge badge-yes">YES</span></td>
+            </tr>
+            <tr>
+                <td><strong>B</strong> &mdash; Stacking</td>
+                <td>7</td>
+                <td style="text-align:center">6</td>
+                <td>
+                    <div class="bar-cell">
+                        <div class="bar-track"><div class="bar-fill high" style="width:85.7%"></div></div>
+                        <span>85.7%</span>
+                    </div>
+                </td>
+                <td>&ge;85%</td>
+                <td style="text-align:center"><span class="badge badge-yes">YES</span></td>
+            </tr>
+            <tr>
+                <td><strong>C</strong> &mdash; Spatial Arrangements</td>
+                <td>6</td>
+                <td style="text-align:center">5</td>
+                <td>
+                    <div class="bar-cell">
+                        <div class="bar-track"><div class="bar-fill high" style="width:83.3%"></div></div>
+                        <span>83.3%</span>
+                    </div>
+                </td>
+                <td>&ge;75%</td>
+                <td style="text-align:center"><span class="badge badge-yes">YES</span></td>
+            </tr>
+            <tr>
+                <td><strong>D</strong> &mdash; Conditional/Relational</td>
+                <td>6</td>
+                <td style="text-align:center">3</td>
+                <td>
+                    <div class="bar-cell">
+                        <div class="bar-track"><div class="bar-fill low" style="width:50%"></div></div>
+                        <span>50.0%</span>
+                    </div>
+                </td>
+                <td>&ge;70%</td>
+                <td style="text-align:center"><span class="badge badge-no">NO</span></td>
+            </tr>
+            <tr>
+                <td><strong>E</strong> &mdash; Composite Multi-Step</td>
+                <td>6</td>
+                <td style="text-align:center">5</td>
+                <td>
+                    <div class="bar-cell">
+                        <div class="bar-track"><div class="bar-fill high" style="width:83.3%"></div></div>
+                        <span>83.3%</span>
+                    </div>
+                </td>
+                <td>&ge;70%</td>
+                <td style="text-align:center"><span class="badge badge-yes">YES</span></td>
+            </tr>
+            <tr>
+                <td><strong>F</strong> &mdash; Rejection</td>
+                <td>6</td>
+                <td style="text-align:center">6</td>
+                <td>
+                    <div class="bar-cell">
+                        <div class="bar-track"><div class="bar-fill high" style="width:100%"></div></div>
+                        <span>100%</span>
+                    </div>
+                </td>
+                <td>&ge;95%</td>
+                <td style="text-align:center"><span class="badge badge-yes">YES</span></td>
+            </tr>
+        </tbody>
+    </table>
+</section>
+
+<!-- ============ EXAMPLES ============ -->
+<section id="examples">
+    <div class="section-label">Examples</div>
+    <h2>Generated Code Samples</h2>
+    <p class="subtitle">Real outputs from the system &mdash; no cherry-picking.</p>
+
+    <div class="code-tabs">
+        <div class="code-example">
+            <div class="code-header">
+                <span class="tag tag-instruction">Conditional Reasoning</span>
+                <span class="tag tag-success">SUCCESS</span>
+            </div>
+            <pre><code><span style="color:#94a3b8"># "If the red block is to the left of the</span>
+<span style="color:#94a3b8"># blue block, swap them."</span>
+
+scene = get_scene_state()
+red  = next(b for b in scene if b["color"] == "red")
+blue = next(b for b in scene if b["color"] == "blue")
+
+if red["pos"][0] < blue["pos"][0]:
+    red_pos  = list(red["pos"])
+    blue_pos = list(blue["pos"])
+    pick_and_place(red["id"],  blue_pos)
+    pick_and_place(blue["id"], red_pos)</code></pre>
+        </div>
+
+        <div class="code-example">
+            <div class="code-header">
+                <span class="tag tag-instruction">Multi-Step Composition</span>
+                <span class="tag tag-success">SUCCESS</span>
+            </div>
+            <pre><code><span style="color:#94a3b8"># "Put all the large blocks on the left,</span>
+<span style="color:#94a3b8"># then stack small blocks on the right."</span>
+
+scene = get_scene_state()
+large = [b for b in scene if b["size"] == "large"]
+small = [b for b in scene if b["size"] == "small"]
+
+left_pos = make_line_positions(
+    get_corner_pos("bottom left"),
+    get_corner_pos("top left"), len(large))
+
+for block, pos in zip(large, left_pos):
+    pick_and_place(block["id"], pos)
+
+if small:
+    right = get_side_pos("right")
+    pick_and_place(small[0]["id"], right)
+    for b in small[1:]:
+        pick_and_place(b["id"], small[0]["id"])</code></pre>
+        </div>
+    </div>
+
+    <div class="code-example" style="max-width:540px">
+        <div class="code-header">
+            <span class="tag tag-instruction">Rejection</span>
+            <span class="tag tag-success">SUCCESS</span>
+        </div>
+        <pre><code><span style="color:#94a3b8"># "Cut the block in half."</span>
+
+say("I cannot cut blocks; the robot can only pick and place objects.")</code></pre>
+    </div>
+</section>
+
+<!-- ============ DISCUSSION ============ -->
+<section id="discussion">
+    <div class="section-label">Discussion</div>
+    <h2>Reflections</h2>
+
+    <div class="cards-grid">
+        <div class="card">
+            <h3>What Worked</h3>
+            <p>Code-as-Policies excels at compositional tasks (83.3% on multi-step). Few-shot prompting with just 11 examples taught the LLM to use our custom API idiomatically. Rejection detection was perfect.</p>
+        </div>
+        <div class="card">
+            <h3>Primary Failure Mode</h3>
+            <p>All 7 failures were caused by the LLM generating <code>import numpy</code> statements, which the sandbox blocks. The model defaults to standard Python practices rather than using pre-injected helpers.</p>
+        </div>
+        <div class="card">
+            <h3>Lessons Learned</h3>
+            <p>API design matters more than prompt tuning. The type-dispatch pattern for <code>pick_and_place</code> eliminated an entire class of errors. Good abstractions reduce LLM cognitive load.</p>
+        </div>
+        <div class="card">
+            <h3>Future Work</h3>
+            <p>Retry with error feedback, real robosuite physics testing, multi-model comparison (GPT-4, Claude), and self-verification where the LLM checks the scene after execution.</p>
+        </div>
+    </div>
+</section>
+
+<!-- ============ TEAM ============ -->
+<section id="team">
+    <div class="section-label">Team</div>
+    <h2>Contributors</h2>
+
+    <div class="team-grid">
+        <div class="team-card">
+            <div class="team-avatar">SS</div>
+            <h3>Samanyu Singh</h3>
+            <p>Task A: Robosuite environment, pick-and-place controller, MuJoCo integration</p>
+        </div>
+        <div class="team-card">
+            <div class="team-avatar">SK</div>
+            <h3>Sathish Kumar N</h3>
+            <p>Task B: LLM pipeline, prompt engineering, sandbox safety, spatial helpers</p>
+        </div>
+        <div class="team-card">
+            <div class="team-avatar">D</div>
+            <h3>Dhwani</h3>
+            <p>Integration, test dataset design, evaluation framework, testing, coordination</p>
+        </div>
+    </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+    <p>CS 188: Introduction to Artificial Intelligence &mdash; UCLA, Spring 2025</p>
+    <p style="margin-top:0.5rem;">
+        Inspired by <a href="https://code-as-policies.github.io/" target="_blank">Code as Policies (Liang et al., 2023)</a>
+    </p>
+</footer>
+
+</body>
+</html>
